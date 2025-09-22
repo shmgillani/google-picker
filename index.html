@@ -403,7 +403,7 @@
             if (data.action === google.picker.Action.PICKED) {
                 const file = data.docs[0];
                 console.log("file from picker=====>>>", data);
-                displayFileInfo(file);
+                displayFileInfo(file, data);
                 showStatus('File selected successfully!', 'success');
             } else if (data.action === google.picker.Action.CANCEL) {
                 showStatus('File selection cancelled', 'info');
@@ -411,7 +411,7 @@
         }
 
         // Display selected file information
-        function displayFileInfo(file) {
+        function displayFileInfo(file, data) {
             // Update file information display
             document.getElementById('fileName').textContent = file.name || 'Unknown';
             document.getElementById('fileType').textContent = file.mimeType || 'Unknown';
@@ -432,7 +432,8 @@
                 sizeBytes: file.sizeBytes,
                 url: file.url,
                 lastEditedUtc: file.lastEditedUtc,
-                selectedAt: new Date().toISOString()
+                selectedAt: new Date().toISOString(),
+                rawData: data
             };
 
             localStorage.setItem('lumexa_selected_file', JSON.stringify(selectedFileData));
