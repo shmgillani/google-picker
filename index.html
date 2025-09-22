@@ -402,7 +402,7 @@
         function pickerCallback(data) {
             if (data.action === google.picker.Action.PICKED) {
                 const file = data.docs[0];
-                console.log("file from picker", file);
+                console.log("file from picker=====>>>", data);
                 displayFileInfo(file);
                 showStatus('File selected successfully!', 'success');
             } else if (data.action === google.picker.Action.CANCEL) {
