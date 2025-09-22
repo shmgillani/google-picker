@@ -308,11 +308,11 @@
                 }
             });
 
-            // Request token from parent window
-            if (window.parent !== window) {
-                window.parent.postMessage({
+            // Request token from parent window (popup opener)
+            if (window.opener) {
+                window.opener.postMessage({
                     type: 'REQUEST_TOKEN'
-                }, '*');
+                }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
             }
         }
 
@@ -437,22 +437,23 @@
             localStorage.setItem('lumexa_selected_file', JSON.stringify(selectedFileData));
             
             // Notify parent window (Lumexa extension) that file was selected
-            if (window.parent !== window) {
-                window.parent.postMessage({
+            if (window.opener) {
+                window.opener.postMessage({
                     type: 'FILE_SELECTED',
                     data: selectedFileData
-                }, '*');
+                }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
             }
 
-            // Show success message with option to close
-            showStatus('File selected! You can now close this window.', 'success');
+            // Show success message
+            showStatus('File selected! Closing window...', 'success');
             
-            // Auto-close after 3 seconds
+            // Auto-close after 2 seconds
             setTimeout(() => {
-                if (window.parent !== window) {
-                    window.parent.postMessage({ type: 'CLOSE_PICKER' }, '*');
+                if (window.opener) {
+                    window.opener.postMessage({ type: 'CLOSE_PICKER' }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
                 }
-            }, 3000);
+                window.close();
+            }, 2000);
         }
 
         // Format file size
