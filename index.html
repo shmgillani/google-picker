@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Drive File Picker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #4285f4;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .picker-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .picker-button {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .picker-button:hover {
+            background: #3367d6;
+            transform: translateY(-1px);
+        }
+
+        .picker-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            margin: 20px 0;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .file-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .file-info h3 {
+            color: #333;
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .file-detail {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+
+        .file-detail strong {
+            color: #495057;
+            font-size: 0.9rem;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .file-detail span {
+            color: #6c757d;
+            font-size: 0.9rem;
+            word-break: break-all;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #4285f4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .icon {
+            font-size: 1.2rem;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .file-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📁 Google Drive File Picker</h1>
+            <p>Select files from your Google Drive</p>
+        </div>
+
+        <div class="content">
+            <div class="picker-section">
+                <button id="openPicker" class="picker-button">
+                    <span class="icon">📁</span>
+                    Choose Files from Google Drive
+                </button>
+            </div>
+
+            <div id="status" class="status"></div>
+
+            <div id="fileInfo" class="file-info">
+                <h3>
+                    <span class="icon">📄</span>
+                    Selected File
+                </h3>
+                <div class="file-grid">
+                    <div class="file-detail">
+                        <strong>File Name</strong>
+                        <span id="fileName">-</span>
+                    </div>
+                    <div class="file-detail">
+                        <strong>File Type</strong>
+                        <span id="fileType">-</span>
+                    </div>
+                    <div class="file-detail">
+                        <strong>File Size</strong>
+                        <span id="fileSize">-</span>
+                    </div>
+                    <div class="file-detail">
+                        <strong>File ID</strong>
+                        <span id="fileId">-</span>
+                    </div>
+                    <div class="file-detail">
+                        <strong>Last Modified</strong>
+                        <span id="fileModified">-</span>
+                    </div>
+                    <div class="file-detail">
+                        <strong>Download URL</strong>
+                        <span id="fileUrl">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Google API Scripts -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://apis.google.com/js/picker.js"></script>
+
+    <script>
+        // Configuration - Token will be loaded from localStorage
+        const CONFIG = {
+            // These will be loaded from localStorage when the page loads
+            ACCESS_TOKEN: null,
+            EXPIRES_IN: null,
+            REFRESH_TOKEN: null,
+            SCOPES: null,
+            TOKEN_TYPE: 'Bearer',
+            CLIENT_ID: '711224924714-a54tb6h4uorb5r3uavq6chsuo187d4ds.apps.googleusercontent.com'
+        };
+
+        // Global variables
+        let pickerApiLoaded = false;
+        let oauthToken = null;
+
+        // DOM elements
+        const elements = {
+            openPicker: document.getElementById('openPicker'),
+            status: document.getElementById('status'),
+            fileInfo: document.getElementById('fileInfo')
+        };
+
+        // Initialize the application
+        function init() {
+            // Check if running from file:// protocol
+            if (window.location.protocol === 'file:') {
+                showStatus('Error: This application must be served from a web server (HTTP/HTTPS). Please use a local server like "python -m http.server 3000" or "npx serve"', 'error');
+                return;
+            }
+
+            // Set up event listeners
+            elements.openPicker.addEventListener('click', openPicker);
+
+            // Listen for token from parent window (Lumexa extension)
+            setupPostMessageListener();
+
+            // Load Google APIs
+            loadGoogleAPIs();
+        }
+
+        // Setup PostMessage listener for token communication
+        function setupPostMessageListener() {
+            window.addEventListener('message', function(event) {
+                // Verify origin for security (update this with your extension's origin)
+                if (event.origin !== 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg') {
+                    return;
+                }
+
+                if (event.data.type === 'SET_TOKEN') {
+                    const tokenData = event.data.data;
+                    CONFIG.ACCESS_TOKEN = tokenData.accessToken;
+                    CONFIG.EXPIRES_IN = tokenData.expiresIn;
+                    CONFIG.REFRESH_TOKEN = tokenData.refreshToken;
+                    CONFIG.SCOPES = tokenData.scope;
+                    
+                    console.log('Token received from Lumexa extension');
+                    showStatus('Token received! Ready to open Google Drive picker.', 'success');
+                    
+                    // Enable the picker button
+                    elements.openPicker.disabled = false;
+                }
+            });
+
+            // Request token from parent window
+            if (window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'REQUEST_TOKEN'
+                }, '*');
+            }
+        }
+
+        // Load Google APIs
+        function loadGoogleAPIs() {
+            showStatus('Loading Google APIs...', 'info');
+
+            // Load the Google API client
+            gapi.load('picker', function() {
+                pickerApiLoaded = true;
+                showStatus('Waiting for token from Lumexa extension...', 'info');
+            });
+        }
+
+        // Show status message
+        function showStatus(message, type) {
+            elements.status.textContent = message;
+            elements.status.className = `status ${type}`;
+            elements.status.style.display = 'block';
+            
+            // Auto-hide success messages
+            if (type === 'success') {
+                setTimeout(() => {
+                    elements.status.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // No authentication needed - using static token from Lumexa
+        function authenticate() {
+            return new Promise((resolve, reject) => {
+                // Token is already set from CONFIG.ACCESS_TOKEN
+                if (oauthToken) {
+                    resolve(oauthToken);
+                } else {
+                    reject(new Error('No access token available. Please configure ACCESS_TOKEN in the code.'));
+                }
+            });
+        }
+
+        // Open Google Picker
+        async function openPicker() {
+            if (!pickerApiLoaded) {
+                showStatus('Google Picker API not loaded yet', 'error');
+                return;
+            }
+
+            if (!CONFIG.ACCESS_TOKEN) {
+                showStatus('No token available. Please ensure you are accessing this from Lumexa extension.', 'error');
+                return;
+            }
+
+            try {
+                // Disable button and show loading
+                elements.openPicker.disabled = true;
+                elements.openPicker.innerHTML = '<div class="loading"></div>Opening...';
+
+                // Set the token
+                oauthToken = CONFIG.ACCESS_TOKEN;
+
+                // Create picker instance
+                const picker = new google.picker.PickerBuilder()
+                    .addView(new google.picker.DocsView(google.picker.ViewId.DOCS)
+                        .setIncludeFolders(true)
+                        .setSelectFolderEnabled(false))
+                    .setOAuthToken(oauthToken)
+                    .setCallback(pickerCallback)
+                    .setOrigin(window.location.protocol + '//' + window.location.host)
+                    .setSize(1050, 650)
+                    .setTitle('Select a file from Google Drive')
+                    .build();
+
+                // Show the picker
+                picker.setVisible(true);
+
+            } catch (error) {
+                console.error('Error opening picker:', error);
+                showStatus(`Error: ${error.message}`, 'error');
+            } finally {
+                // Re-enable button
+                elements.openPicker.disabled = false;
+                elements.openPicker.innerHTML = '<span class="icon">📁</span>Choose Files from Google Drive';
+            }
+        }
+
+        // Handle picker callback
+        function pickerCallback(data) {
+            if (data.action === google.picker.Action.PICKED) {
+                const file = data.docs[0];
+                displayFileInfo(file);
+                showStatus('File selected successfully!', 'success');
+            } else if (data.action === google.picker.Action.CANCEL) {
+                showStatus('File selection cancelled', 'info');
+            }
+        }
+
+        // Display selected file information
+        function displayFileInfo(file) {
+            // Update file information display
+            document.getElementById('fileName').textContent = file.name || 'Unknown';
+            document.getElementById('fileType').textContent = file.mimeType || 'Unknown';
+            document.getElementById('fileSize').textContent = formatFileSize(file.sizeBytes);
+            document.getElementById('fileId').textContent = file.id || 'Unknown';
+            document.getElementById('fileUrl').textContent = file.url || 'Not available';
+            document.getElementById('fileModified').textContent = file.lastEditedUtc ? 
+                new Date(file.lastEditedUtc).toLocaleString() : 'Unknown';
+
+            // Show file info section
+            elements.fileInfo.style.display = 'block';
+
+            // Store selected file data in localStorage for Lumexa extension
+            const selectedFileData = {
+                id: file.id,
+                name: file.name,
+                mimeType: file.mimeType,
+                sizeBytes: file.sizeBytes,
+                url: file.url,
+                lastEditedUtc: file.lastEditedUtc,
+                selectedAt: new Date().toISOString()
+            };
+
+            localStorage.setItem('lumexa_selected_file', JSON.stringify(selectedFileData));
+            
+            // Notify parent window (Lumexa extension) that file was selected
+            if (window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'FILE_SELECTED',
+                    data: selectedFileData
+                }, '*');
+            }
+
+            // Show success message with option to close
+            showStatus('File selected! You can now close this window.', 'success');
+            
+            // Auto-close after 3 seconds
+            setTimeout(() => {
+                if (window.parent !== window) {
+                    window.parent.postMessage({ type: 'CLOSE_PICKER' }, '*');
+                }
+            }, 3000);
+        }
+
+        // Format file size
+        function formatFileSize(bytes) {
+            if (!bytes) return 'Unknown';
+            
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+
+        // Start the application when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            init();
+        });
+    </script>
+</body>
+</html>
