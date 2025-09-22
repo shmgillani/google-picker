@@ -15,73 +15,32 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #f8f9fa;
             min-height: 100vh;
-            padding: 20px;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
+        .loading-container {
+            text-align: center;
             background: white;
+            padding: 40px;
             border-radius: 12px;
             box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
+            max-width: 400px;
+            width: 90%;
         }
 
-        .header {
-            background: #4285f4;
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-
-        .header h1 {
-            font-size: 2rem;
-            margin-bottom: 8px;
-            font-weight: 500;
-        }
-
-        .header p {
-            opacity: 0.9;
-            font-size: 1rem;
-        }
-
-        .content {
-            padding: 30px;
-        }
-
-        .picker-section {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .picker-button {
-            background: #4285f4;
-            color: white;
-            border: none;
-            padding: 16px 32px;
+        .loading-text {
+            margin-top: 16px;
             font-size: 1.1rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
+            color: #333;
             font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .picker-button:hover {
-            background: #3367d6;
-            transform: translateY(-1px);
-        }
-
-        .picker-button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
         }
 
         .status {
-            margin: 20px 0;
+            margin-top: 20px;
             padding: 12px 16px;
             border-radius: 6px;
             font-weight: 500;
@@ -106,55 +65,12 @@
             border: 1px solid #bee5eb;
         }
 
-        .file-info {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
-            display: none;
-        }
-
-        .file-info h3 {
-            color: #333;
-            margin-bottom: 16px;
-            font-size: 1.2rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .file-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-        }
-
-        .file-detail {
-            background: white;
-            padding: 12px;
-            border-radius: 6px;
-            border: 1px solid #e9ecef;
-        }
-
-        .file-detail strong {
-            color: #495057;
-            font-size: 0.9rem;
-            display: block;
-            margin-bottom: 4px;
-        }
-
-        .file-detail span {
-            color: #6c757d;
-            font-size: 0.9rem;
-            word-break: break-all;
-        }
-
         .loading {
             display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #4285f4;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4285f4;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -164,80 +80,19 @@
             100% { transform: rotate(360deg); }
         }
 
-        .icon {
-            font-size: 1.2rem;
-        }
-
         @media (max-width: 600px) {
-            .container {
-                margin: 10px;
-                border-radius: 8px;
-            }
-            
-            .header {
-                padding: 20px;
-            }
-            
-            .content {
-                padding: 20px;
-            }
-            
-            .file-grid {
-                grid-template-columns: 1fr;
+            .loading-container {
+                margin: 20px;
+                padding: 30px 20px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>📁 Google Drive File Picker</h1>
-            <p>Select files from your Google Drive</p>
-        </div>
-
-        <div class="content">
-            <div class="picker-section">
-                <button id="openPicker" class="picker-button">
-                    <span class="icon">📁</span>
-                    Choose Files from Google Drive
-                </button>
-            </div>
-
-            <div id="status" class="status"></div>
-
-            <div id="fileInfo" class="file-info">
-                <h3>
-                    <span class="icon">📄</span>
-                    Selected File
-                </h3>
-                <div class="file-grid">
-                    <div class="file-detail">
-                        <strong>File Name</strong>
-                        <span id="fileName">-</span>
-                    </div>
-                    <div class="file-detail">
-                        <strong>File Type</strong>
-                        <span id="fileType">-</span>
-                    </div>
-                    <div class="file-detail">
-                        <strong>File Size</strong>
-                        <span id="fileSize">-</span>
-                    </div>
-                    <div class="file-detail">
-                        <strong>File ID</strong>
-                        <span id="fileId">-</span>
-                    </div>
-                    <div class="file-detail">
-                        <strong>Last Modified</strong>
-                        <span id="fileModified">-</span>
-                    </div>
-                    <div class="file-detail">
-                        <strong>Download URL</strong>
-                        <span id="fileUrl">-</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="loading-container">
+        <div class="loading"></div>
+        <div class="loading-text">Opening Google Drive Picker...</div>
+        <div id="status" class="status"></div>
     </div>
 
     <!-- Google API Scripts -->
@@ -262,9 +117,7 @@
 
         // DOM elements
         const elements = {
-            openPicker: document.getElementById('openPicker'),
-            status: document.getElementById('status'),
-            fileInfo: document.getElementById('fileInfo')
+            status: document.getElementById('status')
         };
 
         // Initialize the application
@@ -274,9 +127,6 @@
                 showStatus('Error: This application must be served from a web server (HTTP/HTTPS). Please use a local server like "python -m http.server 3000" or "npx serve"', 'error');
                 return;
             }
-
-            // Set up event listeners
-            elements.openPicker.addEventListener('click', openPicker);
 
             // Listen for token from parent window (Lumexa extension)
             setupPostMessageListener();
@@ -301,10 +151,12 @@
                     CONFIG.SCOPES = tokenData.scope;
                     
                     console.log('Token received from Lumexa extension');
-                    showStatus('Token received! Ready to open Google Drive picker.', 'success');
+                    showStatus('Token received! Opening Google Drive picker automatically...', 'success');
                     
-                    // Enable the picker button
-                    elements.openPicker.disabled = false;
+                    // Automatically open the picker
+                    setTimeout(() => {
+                        openPicker();
+                    }, 1000); // Small delay to ensure UI updates
                 }
             });
 
@@ -323,7 +175,7 @@
             // Load the Google API client
             gapi.load('picker', function() {
                 pickerApiLoaded = true;
-                showStatus('Waiting for token from Lumexa extension...', 'info');
+                showStatus('Google APIs loaded. Waiting for token from Lumexa extension...', 'info');
             });
         }
 
@@ -366,9 +218,7 @@
             }
 
             try {
-                // Disable button and show loading
-                elements.openPicker.disabled = true;
-                elements.openPicker.innerHTML = '<div class="loading"></div>Opening...';
+                showStatus('Opening Google Drive picker...', 'info');
 
                 // Set the token
                 oauthToken = CONFIG.ACCESS_TOKEN;
@@ -391,10 +241,6 @@
             } catch (error) {
                 console.error('Error opening picker:', error);
                 showStatus(`Error: ${error.message}`, 'error');
-            } finally {
-                // Re-enable button
-                elements.openPicker.disabled = false;
-                elements.openPicker.innerHTML = '<span class="icon">📁</span>Choose Files from Google Drive';
             }
         }
 
@@ -410,20 +256,8 @@
             }
         }
 
-        // Display selected file information
+        // Handle file selection
         function displayFileInfo(file, data) {
-            // Update file information display
-            document.getElementById('fileName').textContent = file.name || 'Unknown';
-            document.getElementById('fileType').textContent = file.mimeType || 'Unknown';
-            document.getElementById('fileSize').textContent = formatFileSize(file.sizeBytes);
-            document.getElementById('fileId').textContent = file.id || 'Unknown';
-            document.getElementById('fileUrl').textContent = file.url || 'Not available';
-            document.getElementById('fileModified').textContent = file.lastEditedUtc ? 
-                new Date(file.lastEditedUtc).toLocaleString() : 'Unknown';
-
-            // Show file info section
-            elements.fileInfo.style.display = 'block';
-
             // Store selected file data in localStorage for Lumexa extension
             const selectedFileData = {
                 id: file.id,
@@ -457,16 +291,6 @@
                 window.close();
             }, 2000);
         }
-
-        // Format file size
-        function formatFileSize(bytes) {
-            if (!bytes) return 'Unknown';
-            
-            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(1024));
-            return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-        }
-
 
         // Start the application when page loads
         document.addEventListener('DOMContentLoaded', function() {
