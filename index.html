@@ -92,7 +92,6 @@
     <div class="loading-container">
         <div class="loading"></div>
         <div class="loading-text">Opening Google Drive Picker...</div>
-        <div id="status" class="status"></div>
     </div>
 
     <!-- Google API Scripts -->
@@ -124,7 +123,7 @@
         function init() {
             // Check if running from file:// protocol
             if (window.location.protocol === 'file:') {
-                showStatus('Error: This application must be served from a web server (HTTP/HTTPS). Please use a local server like "python -m http.server 3000" or "npx serve"', 'error');
+                // showStatus('Error: This application must be served from a web server (HTTP/HTTPS). Please use a local server like "python -m http.server 3000" or "npx serve"', 'error');
                 return;
             }
 
@@ -151,7 +150,7 @@
                     CONFIG.SCOPES = tokenData.scope;
                     
                     console.log('Token received from Lumexa extension');
-                    showStatus('Token received! Opening Google Drive picker automatically...', 'success');
+                    // showStatus('Token received! Opening Google Drive picker automatically...', 'success');
                     
                     // Automatically open the picker
                     setTimeout(() => {
@@ -170,12 +169,12 @@
 
         // Load Google APIs
         function loadGoogleAPIs() {
-            showStatus('Loading Google APIs...', 'info');
+            // showStatus('Loading Google APIs...', 'info');
 
             // Load the Google API client
             gapi.load('picker', function() {
                 pickerApiLoaded = true;
-                showStatus('Google APIs loaded. Waiting for token from Lumexa extension...', 'info');
+                // showStatus('Google APIs loaded. Waiting for token from Lumexa extension...', 'info');
             });
         }
 
@@ -208,17 +207,17 @@
         // Open Google Picker
         async function openPicker() {
             if (!pickerApiLoaded) {
-                showStatus('Google Picker API not loaded yet', 'error');
+                // showStatus('Google Picker API not loaded yet', 'error');
                 return;
             }
 
             if (!CONFIG.ACCESS_TOKEN) {
-                showStatus('No token available. Please ensure you are accessing this from Lumexa extension.', 'error');
+                // showStatus('No token available. Please ensure you are accessing this from Lumexa extension.', 'error');
                 return;
             }
 
             try {
-                showStatus('Opening Google Drive picker...', 'info');
+                // showStatus('Opening Google Drive picker...', 'info');
 
                 // Set the token
                 oauthToken = CONFIG.ACCESS_TOKEN;
@@ -240,7 +239,7 @@
 
             } catch (error) {
                 console.error('Error opening picker:', error);
-                showStatus(`Error: ${error.message}`, 'error');
+                // showStatus(`Error: ${error.message}`, 'error');
             }
         }
 
@@ -250,9 +249,9 @@
                 const file = data.docs[0];
                 console.log("file from picker=====>>>", data);
                 displayFileInfo(file, data);
-                showStatus('File selected successfully!', 'success');
+                // showStatus('File selected successfully!', 'success');
             } else if (data.action === google.picker.Action.CANCEL) {
-                showStatus('File selection cancelled', 'info');
+                // showStatus('File selection cancelled', 'info');
             }
         }
 
@@ -281,7 +280,7 @@
             }
 
             // Show success message
-            showStatus('File selected! Closing window...', 'success');
+            // showStatus('File selected! Closing window...', 'success');
             
             // Auto-close after 2 seconds
             setTimeout(() => {
