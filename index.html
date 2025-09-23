@@ -154,6 +154,7 @@
                     
                     // Get filter type from the same message
                     const filterType = event.data.filterType || 'all';
+                    console.log('Received filterType:', filterType);
                     
                     // Open picker with filter type
                     setTimeout(() => {
@@ -209,18 +210,20 @@
 
         // Open Google Picker with filtering options
         async function openPicker(filterType = 'all') {
+            console.log('openPicker called with filterType:', filterType);
+            
             if (!pickerApiLoaded) {
-                // showStatus('Google Picker API not loaded yet', 'error');
+                console.error('Google Picker API not loaded yet');
                 return;
             }
 
             if (!CONFIG.ACCESS_TOKEN) {
-                // showStatus('No token available. Please ensure you are accessing this from Lumexa extension.', 'error');
+                console.error('No token available');
                 return;
             }
 
             try {
-                // showStatus('Opening Google Drive picker...', 'info');
+                console.log('Opening Google Drive picker with filter:', filterType);
 
                 // Set the token
                 oauthToken = CONFIG.ACCESS_TOKEN;
@@ -235,57 +238,46 @@
                 // Apply different filters based on filterType
                 switch (filterType) {
                     case 'documents':
-                        // Only show documents (Google Docs, Word, PDF, etc.)
-                        pickerBuilder.addView(
-                            new google.picker.DocsView(google.picker.ViewId.DOCS)
-                                .setMimeTypes('application/vnd.google-apps.document,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain')
-                                .setIncludeFolders(false)
-                                .setSelectFolderEnabled(false)
-                        );
+                        // Only show documents using ViewId.DOCUMENTS
+                        console.log('Applying documents filter...');
+                        pickerBuilder.addView(google.picker.ViewId.DOCUMENTS);
+                        console.log('Added ViewId.DOCUMENTS');
                         pickerBuilder.setTitle('Select a document from Google Drive');
                         break;
 
                     case 'images':
-                        // Only show images
-                        pickerBuilder.addView(
-                            new google.picker.DocsView(google.picker.ViewId.DOCS)
-                                .setMimeTypes('image/jpeg,image/png,image/gif,image/bmp,image/webp,image/svg+xml')
-                                .setIncludeFolders(false)
-                                .setSelectFolderEnabled(false)
-                        );
+                        // Only show images using ViewId.PHOTOS
+                        console.log('Applying images filter...');
+                        pickerBuilder.addView(google.picker.ViewId.PHOTOS);
+                        console.log('Added ViewId.PHOTOS');
                         pickerBuilder.setTitle('Select an image from Google Drive');
                         break;
 
                     case 'videos':
-                        // Only show videos
-                        pickerBuilder.addView(
-                            new google.picker.DocsView(google.picker.ViewId.DOCS)
-                                .setMimeTypes('video/mp4,video/avi,video/mov,video/wmv,video/flv,video/webm,video/mkv')
-                                .setIncludeFolders(false)
-                                .setSelectFolderEnabled(false)
-                        );
+                        // Only show videos - use DocsView with MIME type filter
+                        console.log('Applying videos filter...');
+                        const videoView = new google.picker.DocsView(google.picker.ViewId.DOCS)
+                            .setMimeTypes('video/mp4,video/avi,video/mov,video/wmv,video/flv,video/webm,video/mkv')
+                            .setIncludeFolders(false)
+                            .setSelectFolderEnabled(false);
+                        pickerBuilder.addView(videoView);
+                        console.log('Added video MIME type filter');
                         pickerBuilder.setTitle('Select a video from Google Drive');
                         break;
 
                     case 'spreadsheets':
-                        // Only show spreadsheets
-                        pickerBuilder.addView(
-                            new google.picker.DocsView(google.picker.ViewId.DOCS)
-                                .setMimeTypes('application/vnd.google-apps.spreadsheet,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv')
-                                .setIncludeFolders(false)
-                                .setSelectFolderEnabled(false)
-                        );
+                        // Only show spreadsheets using ViewId.SPREADSHEETS
+                        console.log('Applying spreadsheets filter...');
+                        pickerBuilder.addView(google.picker.ViewId.SPREADSHEETS);
+                        console.log('Added ViewId.SPREADSHEETS');
                         pickerBuilder.setTitle('Select a spreadsheet from Google Drive');
                         break;
 
                     case 'presentations':
-                        // Only show presentations
-                        pickerBuilder.addView(
-                            new google.picker.DocsView(google.picker.ViewId.DOCS)
-                                .setMimeTypes('application/vnd.google-apps.presentation,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint')
-                                .setIncludeFolders(false)
-                                .setSelectFolderEnabled(false)
-                        );
+                        // Only show presentations using ViewId.PRESENTATIONS
+                        console.log('Applying presentations filter...');
+                        pickerBuilder.addView(google.picker.ViewId.PRESENTATIONS);
+                        console.log('Added ViewId.PRESENTATIONS');
                         pickerBuilder.setTitle('Select a presentation from Google Drive');
                         break;
 
@@ -300,23 +292,18 @@
                         break;
 
                     case 'custom':
-                        // Custom filter: Only PDF and Word documents
-                        pickerBuilder.addView(
-                            new google.picker.DocsView(google.picker.ViewId.DOCS)
-                                .setMimeTypes('application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword')
-                                .setIncludeFolders(false)
-                                .setSelectFolderEnabled(false)
-                        );
-                        pickerBuilder.setTitle('Select a PDF or Word document from Google Drive');
+                        // Custom filter: Only PDFs using ViewId.PDFS
+                        console.log('Applying custom filter (PDFs)...');
+                        pickerBuilder.addView(google.picker.ViewId.PDFS);
+                        console.log('Added ViewId.PDFS');
+                        pickerBuilder.setTitle('Select a PDF from Google Drive');
                         break;
 
                     case 'recent':
-                        // Show recent files (last 7 days)
-                        pickerBuilder.addView(
-                            new google.picker.DocsView(google.picker.ViewId.DOCS)
-                                .setIncludeFolders(false)
-                                .setSelectFolderEnabled(false)
-                        );
+                        // Show recent files using ViewId.RECENTLY_PICKED
+                        console.log('Applying recent files filter...');
+                        pickerBuilder.addView(google.picker.ViewId.RECENTLY_PICKED);
+                        console.log('Added ViewId.RECENTLY_PICKED');
                         pickerBuilder.setTitle('Select a recent file from Google Drive');
                         break;
 
@@ -332,8 +319,11 @@
                 }
 
                 // Build and show the picker
+                console.log('Building picker with filterType:', filterType);
                 const picker = pickerBuilder.build();
+                console.log('Picker built successfully');
                 picker.setVisible(true);
+                console.log('Picker set to visible');
 
             } catch (error) {
                 console.error('Error opening picker:', error);
