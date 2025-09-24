@@ -336,12 +336,12 @@
                     }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
                 }
                 
-                setTimeout(() => {
-                    if (window.opener) {
-                        window.opener.postMessage({ type: 'CLOSE_PICKER' }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
-                    }
-                    window.close();
-                }, 2000);
+                // setTimeout(() => {
+                //     if (window.opener) {
+                //         window.opener.postMessage({ type: 'CLOSE_PICKER' }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
+                //     }
+                //     window.close();
+                // }, 2000);
             }
         }
         // Handle file selection
@@ -370,12 +370,12 @@
             // showStatus('File selected! Closing window...', 'success');
             
             // Auto-close after 2 seconds
-            setTimeout(() => {
-                if (window.opener) {
-                    window.opener.postMessage({ type: 'CLOSE_PICKER' }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
-                }
-                window.close();
-            }, 2000);
+            // setTimeout(() => {
+            //     if (window.opener) {
+            //         window.opener.postMessage({ type: 'CLOSE_PICKER' }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
+            //     }
+            //     window.close();
+            // }, 2000);
         }
         // Start the application when page loads
         document.addEventListener('DOMContentLoaded', function() {
