@@ -1,83 +1,118 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Drive Picker with CSV Export</title>
-  <script src="https://apis.google.com/js/api.js"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Drive File Picker + XLSX Parser</title>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://apis.google.com/js/picker.js"></script>
+    <!-- Load SheetJS for parsing Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
-  <button id="pickFile">Pick Google Sheet</button>
+    <h3>Google Picker + XLSX Parsing Demo</h3>
 
-  <script>
-    const CLIENT_ID = "<YOUR_CLIENT_ID>.apps.googleusercontent.com";
-    const API_KEY = "<YOUR_API_KEY>";
-    const SCOPES = "https://www.googleapis.com/auth/drive.file";
+    <script>
+        const CONFIG = {
+            ACCESS_TOKEN: null,
+            CLIENT_ID: 'YOUR_CLIENT_ID_HERE'
+        };
 
-    let tokenClient;
-    let accessToken;
+        let pickerApiLoaded = false;
+        let oauthToken = null;
 
-    function initPicker() {
-      gapi.load("client:picker", async () => {
-        await gapi.client.init({ apiKey: API_KEY });
-        tokenClient = google.accounts.oauth2.initTokenClient({
-          client_id: CLIENT_ID,
-          scope: SCOPES,
-          callback: (response) => {
-            accessToken = response.access_token;
-            openPicker();
-          }
-        });
-        tokenClient.requestAccessToken();
-      });
-    }
-
-    function openPicker() {
-      const view = new google.picker.View(google.picker.ViewId.SPREADSHEETS);
-      const picker = new google.picker.PickerBuilder()
-        .addView(view)
-        .setOAuthToken(accessToken)
-        .setDeveloperKey(API_KEY)
-        .setCallback(pickerCallback)
-        .build();
-      picker.setVisible(true);
-    }
-
-    async function pickerCallback(data) {
-      if (data.action === google.picker.Action.PICKED) {
-        const file = data.docs[0];
-        console.log("File selected:", file);
-
-        // ✅ Fetch spreadsheet as CSV via Drive API (no Sheets scope required)
-        try {
-          const response = await fetch(
-            `https://www.googleapis.com/drive/v3/files/${file.id}/export?mimeType=text/csv`,
-            { headers: { Authorization: `Bearer ${accessToken}` } }
-          );
-
-          if (!response.ok) throw new Error(`Export failed: ${response.status}`);
-          const csvText = await response.text();
-          const jsonData = csvToJson(csvText);
-          console.log("Parsed JSON:", jsonData);
-        } catch (err) {
-          console.error("Error fetching/exporting CSV:", err);
+        function init() {
+            setupPostMessageListener();
+            loadGoogleAPIs();
         }
-      }
-    }
 
-    // Simple CSV → JSON parser
-    function csvToJson(csv) {
-      const lines = csv.split("\n").filter(line => line.trim() !== "");
-      const headers = lines[0].split(",").map(h => h.trim());
-      return lines.slice(1).map(row => {
-        const values = row.split(",");
-        return headers.reduce((obj, header, i) => {
-          obj[header] = values[i] ? values[i].trim() : "";
-          return obj;
-        }, {});
-      });
-    }
+        function setupPostMessageListener() {
+            window.addEventListener('message', function(event) {
+                if (event.origin !== 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg') return;
 
-    document.getElementById("pickFile").addEventListener("click", initPicker);
-  </script>
+                if (event.data.type === 'SET_TOKEN') {
+                    CONFIG.ACCESS_TOKEN = event.data.data.accessToken;
+                    oauthToken = CONFIG.ACCESS_TOKEN;
+                    console.log('Token received. Opening picker...');
+                    setTimeout(openPicker, 500);
+                }
+            });
+
+            if (window.opener) {
+                window.opener.postMessage({ type: 'REQUEST_TOKEN' },
+                    'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
+            }
+        }
+
+        function loadGoogleAPIs() {
+            gapi.load('picker', function () {
+                pickerApiLoaded = true;
+            });
+        }
+
+        async function openPicker() {
+            if (!pickerApiLoaded || !CONFIG.ACCESS_TOKEN) return;
+
+            const picker = new google.picker.PickerBuilder()
+                .addView(new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS)
+                    .setIncludeFolders(false)
+                    .setSelectFolderEnabled(false))
+                .setOAuthToken(CONFIG.ACCESS_TOKEN)
+                .setCallback(pickerCallback)
+                .setOrigin(window.location.protocol + '//' + window.location.host)
+                .setSize(1050, 650)
+                .setTitle('Select a Google Spreadsheet')
+                .build();
+
+            picker.setVisible(true);
+        }
+
+        async function pickerCallback(data) {
+            if (data.action === google.picker.Action.PICKED) {
+                const file = data.docs[0];
+                console.log('File selected:', file);
+                await fetchAndParseSpreadsheet(file.id);
+            }
+        }
+
+        async function fetchAndParseSpreadsheet(fileId) {
+            try {
+                console.log(`Exporting spreadsheet: ${fileId}`);
+
+                const response = await fetch(
+                    `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${CONFIG.ACCESS_TOKEN}`
+                        }
+                    }
+                );
+
+                if (!response.ok) throw new Error(`Export failed: ${response.statusText}`);
+
+                const arrayBuffer = await response.arrayBuffer();
+
+                // Parse XLSX
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+
+                console.log("Sheet Tabs:", workbook.SheetNames);
+
+                workbook.SheetNames.forEach(sheetName => {
+                    const worksheet = workbook.Sheets[sheetName];
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    if (rows.length > 0) {
+                        console.log(`Columns in "${sheetName}":`, rows[0]);
+                    } else {
+                        console.log(`"${sheetName}" is empty`);
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error exporting or parsing spreadsheet:", error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
 </body>
 </html>
