@@ -1,300 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Google Drive File Picker</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f8f9fa;
-            min-height: 100vh;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .loading-container {
-            text-align: center;
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
-            max-width: 400px;
-            width: 90%;
-        }
-
-        .loading-text {
-            margin-top: 16px;
-            font-size: 1.1rem;
-            color: #333;
-            font-weight: 500;
-        }
-
-        .status {
-            margin-top: 20px;
-            padding: 12px 16px;
-            border-radius: 6px;
-            font-weight: 500;
-            display: none;
-        }
-
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .status.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        .loading {
-            display: inline-block;
-            width: 24px;
-            height: 24px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #4285f4;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        @media (max-width: 600px) {
-            .loading-container {
-                margin: 20px;
-                padding: 30px 20px;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Drive Picker + Sheets Metadata</title>
+  <script src="https://apis.google.com/js/api.js"></script>
+  <script src="https://apis.google.com/js/picker.js"></script>
 </head>
 <body>
-    <div class="loading-container">
-        <div class="loading"></div>
-        <div class="loading-text">Opening Google Drive Picker...</div>
-        
-    </div>
+  <div class="loading-container">
+    <div class="loading"></div>
+    <div class="loading-text">Opening Google Drive Picker...</div>
+  </div>
 
-    <!-- Google API Scripts -->
-    <script src="https://apis.google.com/js/api.js"></script>
-    <script src="https://apis.google.com/js/picker.js"></script>
+  <script>
+    const CONFIG = {
+      ACCESS_TOKEN: null,
+      TOKEN_TYPE: 'Bearer',
+      CLIENT_ID: '711224924714-a54tb6h4uorb5r3uavq6chsuo187d4ds.apps.googleusercontent.com'
+    };
 
-    <script>
-        // Configuration - Token will be loaded from localStorage
-        const CONFIG = {
-            // These will be loaded from localStorage when the page loads
-            ACCESS_TOKEN: null,
-            EXPIRES_IN: null,
-            REFRESH_TOKEN: null,
-            SCOPES: null,
-            TOKEN_TYPE: 'Bearer',
-        };
+    let pickerApiLoaded = false;
+    let oauthToken = null;
 
-        // Global variables
-        let pickerApiLoaded = false;
-        let oauthToken = null;
+    function init() {
+      setupPostMessageListener();
+      gapi.load('picker', () => { pickerApiLoaded = true; });
+    }
 
-        // DOM elements
-        const elements = {
-            status: document.getElementById('status')
-        };
+    function setupPostMessageListener() {
+      window.addEventListener('message', function(event) {
+        if (event.origin !== 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg') return;
 
-        // Initialize the application
-        function init() {
-            // Check if running from file:// protocol
-            if (window.location.protocol === 'file:') {
-                // showStatus('Error: This application must be served from a web server (HTTP/HTTPS). Please use a local server like "python -m http.server 3000" or "npx serve"', 'error');
-                return;
-            }
-
-            // Listen for token from parent window (Lumexa extension)
-            setupPostMessageListener();
-
-            // Load Google APIs
-            loadGoogleAPIs();
+        if (event.data.type === 'SET_TOKEN') {
+          CONFIG.ACCESS_TOKEN = event.data.data.accessToken;
+          oauthToken = CONFIG.ACCESS_TOKEN;
+          setTimeout(() => openPicker(), 500);
         }
+      });
 
-        // Setup PostMessage listener for token communication
-        function setupPostMessageListener() {
-            window.addEventListener('message', function(event) {
-                // Verify origin for security (update this with your extension's origin)
-                if (event.origin !== 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg') {
-                    return;
-                }
+      if (window.opener) {
+        window.opener.postMessage({ type: 'REQUEST_TOKEN' }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
+      }
+    }
 
-                if (event.data.type === 'SET_TOKEN') {
-                    const tokenData = event.data.data;
-                    CONFIG.ACCESS_TOKEN = tokenData.accessToken;
-                    CONFIG.EXPIRES_IN = tokenData.expiresIn;
-                    CONFIG.REFRESH_TOKEN = tokenData.refreshToken;
-                    CONFIG.SCOPES = tokenData.scope;
-                    
-                    console.log('Token received from Lumexa extension');
-                    // showStatus('Token received! Opening Google Drive picker automatically...', 'success');
-                    
-                    // Automatically open the picker
-                    setTimeout(() => {
-                        openPicker();
-                    }, 1000); // Small delay to ensure UI updates
-                }
-            });
+    function openPicker() {
+      if (!pickerApiLoaded || !oauthToken) return;
 
-            // Request token from parent window (popup opener)
-            if (window.opener) {
-                window.opener.postMessage({
-                    type: 'REQUEST_TOKEN'
-                }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
-            }
-        }
+      const picker = new google.picker.PickerBuilder()
+        .addView(new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS))
+        .setOAuthToken(oauthToken)
+        .setCallback(pickerCallback)
+        .setOrigin(window.location.protocol + '//' + window.location.host)
+        .build();
+      picker.setVisible(true);
+    }
 
-        // Load Google APIs
-        function loadGoogleAPIs() {
-            // showStatus('Loading Google APIs...', 'info');
+    async function pickerCallback(data) {
+      if (data.action === google.picker.Action.PICKED) {
+        const file = data.docs[0];
+        console.log("File selected:", file);
+        await fetchSheetMetadata(file.id);
+      }
+    }
 
-            // Load the Google API client
-            gapi.load('picker', function() {
-                pickerApiLoaded = true;
-                // showStatus('Google APIs loaded. Waiting for token from Lumexa extension...', 'info');
-            });
-        }
+    async function fetchSheetMetadata(fileId) {
+      try {
+        // 1️⃣ Get spreadsheet tabs (sheets)
+        const sheetsResponse = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${fileId}`,
+          {
+            headers: { Authorization: `Bearer ${oauthToken}` }
+          }
+        );
+        if (!sheetsResponse.ok) throw new Error("Failed to get sheet metadata");
+        const sheetsData = await sheetsResponse.json();
+        console.log("Sheet metadata:", sheetsData);
 
-        // Show status message
-        function showStatus(message, type) {
-            elements.status.textContent = message;
-            elements.status.className = `status ${type}`;
-            elements.status.style.display = 'block';
-            
-            // Auto-hide success messages
-            if (type === 'success') {
-                setTimeout(() => {
-                    elements.status.style.display = 'none';
-                }, 3000);
-            }
-        }
+        // 2️⃣ Get first sheet columns (header row)
+        const firstSheetName = sheetsData.sheets[0].properties.title;
+        const range = encodeURIComponent(`${firstSheetName}!1:1`); // first row
+        const valuesResponse = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/${range}`,
+          {
+            headers: { Authorization: `Bearer ${oauthToken}` }
+          }
+        );
+        const valuesData = await valuesResponse.json();
+        console.log("Columns for first sheet:", valuesData.values?.[0] || []);
 
-        // No authentication needed - using static token from Lumexa
-        function authenticate() {
-            return new Promise((resolve, reject) => {
-                // Token is already set from CONFIG.ACCESS_TOKEN
-                if (oauthToken) {
-                    resolve(oauthToken);
-                } else {
-                    reject(new Error('No access token available. Please configure ACCESS_TOKEN in the code.'));
-                }
-            });
-        }
+      } catch (error) {
+        console.error("Error fetching spreadsheet info:", error);
+      }
+    }
 
-        // Open Google Picker
-        async function openPicker() {
-            if (!pickerApiLoaded) {
-                // showStatus('Google Picker API not loaded yet', 'error');
-                return;
-            }
-
-            if (!CONFIG.ACCESS_TOKEN) {
-                // showStatus('No token available. Please ensure you are accessing this from Lumexa extension.', 'error');
-                return;
-            }
-
-            try {
-                // showStatus('Opening Google Drive picker...', 'info');
-
-                // Set the token
-                oauthToken = CONFIG.ACCESS_TOKEN;
-
-                // Create picker instance
-                const picker = new google.picker.PickerBuilder()
-                    .addView(new google.picker.DocsView(google.picker.ViewId.DOCS)
-                        .setIncludeFolders(true)
-                        .setSelectFolderEnabled(false))
-                    .setOAuthToken(oauthToken)
-                    .setCallback(pickerCallback)
-                    .setOrigin(window.location.protocol + '//' + window.location.host)
-                    .setSize(1050, 650)
-                    .setTitle('Select a file from Google Drive')
-                    .build();
-
-                // Show the picker
-                picker.setVisible(true);
-
-            } catch (error) {
-                console.error('Error opening picker:', error);
-                // showStatus(`Error: ${error.message}`, 'error');
-            }
-        }
-
-        // Handle picker callback
-        function pickerCallback(data) {
-            if (data.action === google.picker.Action.PICKED) {
-                const file = data.docs[0];
-                console.log("file from picker=====>>>", data);
-                displayFileInfo(file, data);
-                // showStatus('File selected successfully!', 'success');
-            } else if (data.action === google.picker.Action.CANCEL) {
-                // showStatus('File selection cancelled', 'info');
-            }
-        }
-
-        // Handle file selection
-        function displayFileInfo(file, data) {
-            // Store selected file data in localStorage for Lumexa extension
-            const selectedFileData = {
-                id: file.id,
-                name: file.name,
-                mimeType: file.mimeType,
-                sizeBytes: file.sizeBytes,
-                url: file.url,
-                lastEditedUtc: file.lastEditedUtc,
-                selectedAt: new Date().toISOString(),
-                rawData: data
-            };
-
-            localStorage.setItem('lumexa_selected_file', JSON.stringify(selectedFileData));
-            
-            // Notify parent window (Lumexa extension) that file was selected
-            if (window.opener) {
-                window.opener.postMessage({
-                    type: 'FILE_SELECTED',
-                    data: selectedFileData
-                }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
-            }
-
-            // Show success message
-            // showStatus('File selected! Closing window...', 'success');
-            
-            // Auto-close after 2 seconds
-            setTimeout(() => {
-                if (window.opener) {
-                    window.opener.postMessage({ type: 'CLOSE_PICKER' }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
-                }
-                window.close();
-            }, 2000);
-        }
-
-        // Start the application when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            init();
-        });
-    </script>
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
 </body>
 </html>
