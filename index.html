@@ -10,6 +10,7 @@
             padding: 0;
             box-sizing: border-box;
         }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #f8f9fa;
@@ -20,6 +21,7 @@
             align-items: center;
             justify-content: center;
         }
+
         .loading-container {
             text-align: center;
             background: white;
@@ -29,12 +31,14 @@
             max-width: 400px;
             width: 90%;
         }
+
         .loading-text {
             margin-top: 16px;
             font-size: 1.1rem;
             color: #333;
             font-weight: 500;
         }
+
         .status {
             margin-top: 20px;
             padding: 12px 16px;
@@ -42,21 +46,25 @@
             font-weight: 500;
             display: none;
         }
+
         .status.success {
             background: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
         }
+
         .status.error {
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+
         .status.info {
             background: #d1ecf1;
             color: #0c5460;
             border: 1px solid #bee5eb;
         }
+
         .loading {
             display: inline-block;
             width: 24px;
@@ -66,10 +74,12 @@
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
         @media (max-width: 600px) {
             .loading-container {
                 margin: 20px;
@@ -84,9 +94,11 @@
         <div class="loading-text">Opening Google Drive Picker...</div>
         
     </div>
+
     <!-- Google API Scripts -->
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://apis.google.com/js/picker.js"></script>
+
     <script>
         // Configuration - Token will be loaded from localStorage
         const CONFIG = {
@@ -96,15 +108,17 @@
             REFRESH_TOKEN: null,
             SCOPES: null,
             TOKEN_TYPE: 'Bearer',
-            CLIENT_ID: '711224924714-suhlskls9gtd7tvlm1puheldth8p5il7.apps.googleusercontent.com'
         };
+
         // Global variables
         let pickerApiLoaded = false;
         let oauthToken = null;
+
         // DOM elements
         const elements = {
             status: document.getElementById('status')
         };
+
         // Initialize the application
         function init() {
             // Check if running from file:// protocol
@@ -112,11 +126,14 @@
                 // showStatus('Error: This application must be served from a web server (HTTP/HTTPS). Please use a local server like "python -m http.server 3000" or "npx serve"', 'error');
                 return;
             }
+
             // Listen for token from parent window (Lumexa extension)
             setupPostMessageListener();
+
             // Load Google APIs
             loadGoogleAPIs();
         }
+
         // Setup PostMessage listener for token communication
         function setupPostMessageListener() {
             window.addEventListener('message', function(event) {
@@ -124,6 +141,7 @@
                 if (event.origin !== 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg') {
                     return;
                 }
+
                 if (event.data.type === 'SET_TOKEN') {
                     const tokenData = event.data.data;
                     CONFIG.ACCESS_TOKEN = tokenData.accessToken;
@@ -140,6 +158,7 @@
                     }, 1000); // Small delay to ensure UI updates
                 }
             });
+
             // Request token from parent window (popup opener)
             if (window.opener) {
                 window.opener.postMessage({
@@ -147,15 +166,18 @@
                 }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
             }
         }
+
         // Load Google APIs
         function loadGoogleAPIs() {
             // showStatus('Loading Google APIs...', 'info');
+
             // Load the Google API client
             gapi.load('picker', function() {
                 pickerApiLoaded = true;
                 // showStatus('Google APIs loaded. Waiting for token from Lumexa extension...', 'info');
             });
         }
+
         // Show status message
         function showStatus(message, type) {
             elements.status.textContent = message;
@@ -169,6 +191,7 @@
                 }, 3000);
             }
         }
+
         // No authentication needed - using static token from Lumexa
         function authenticate() {
             return new Promise((resolve, reject) => {
@@ -180,20 +203,25 @@
                 }
             });
         }
+
         // Open Google Picker
         async function openPicker() {
             if (!pickerApiLoaded) {
                 // showStatus('Google Picker API not loaded yet', 'error');
                 return;
             }
+
             if (!CONFIG.ACCESS_TOKEN) {
                 // showStatus('No token available. Please ensure you are accessing this from Lumexa extension.', 'error');
                 return;
             }
+
             try {
                 // showStatus('Opening Google Drive picker...', 'info');
+
                 // Set the token
                 oauthToken = CONFIG.ACCESS_TOKEN;
+
                 // Create picker instance
                 const picker = new google.picker.PickerBuilder()
                     .addView(new google.picker.DocsView(google.picker.ViewId.DOCS)
@@ -205,145 +233,28 @@
                     .setSize(1050, 650)
                     .setTitle('Select a file from Google Drive')
                     .build();
+
                 // Show the picker
                 picker.setVisible(true);
+
             } catch (error) {
                 console.error('Error opening picker:', error);
                 // showStatus(`Error: ${error.message}`, 'error');
             }
         }
+
         // Handle picker callback
         function pickerCallback(data) {
             if (data.action === google.picker.Action.PICKED) {
                 const file = data.docs[0];
                 console.log("file from picker=====>>>", data);
-                
-                // Grant access to file first, then display info
-                grantFileAccess(file, data);
-                
+                displayFileInfo(file, data);
                 // showStatus('File selected successfully!', 'success');
             } else if (data.action === google.picker.Action.CANCEL) {
                 // showStatus('File selection cancelled', 'info');
             }
         }
-        // Grant access to file using drive.file scope workaround
-        async function grantFileAccess(file, pickerData) {
-            console.log('=== GRANT FILE ACCESS STARTED ===');
-            console.log('File to grant access:', {
-                id: file.id,
-                name: file.name,
-                mimeType: file.mimeType
-            });
-            console.log('Current token:', CONFIG.ACCESS_TOKEN ? 'Present' : 'Missing');
-            console.log('Current scopes:', CONFIG.SCOPES);
-            
-            try {
-                console.log('\n🔄 Step 1: Creating temporary copy to grant access...');
-                
-                const copyUrl = `https://www.googleapis.com/drive/v3/files/${file.id}/copy`;
-                console.log('Copy URL:', copyUrl);
-                
-                const copyBody = {
-                    name: `${file.name} (Lumexa Temp Copy)`
-                };
-                console.log('Copy request body:', copyBody);
-                
-                // Create a copy of the file (this grants drive.file access)
-                const copyResponse = await fetch(copyUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${CONFIG.ACCESS_TOKEN}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(copyBody)
-                });
-                console.log('Copy response status:', copyResponse.status, copyResponse.statusText);
-                console.log('Copy response headers:', Object.fromEntries(copyResponse.headers.entries()));
-                if (!copyResponse.ok) {
-                    const errorText = await copyResponse.text();
-                    console.error('❌ Copy failed - Response body:', errorText);
-                    throw new Error(`Copy failed: ${copyResponse.status} ${copyResponse.statusText} - ${errorText}`);
-                }
-                const copiedFile = await copyResponse.json();
-                console.log('✅ Step 2: Copy created successfully!');
-                console.log('Copied file details:', copiedFile);
-                // Now we have access to the original file through drive.file scope
-                // Verify access to original file
-                console.log('\n🔍 Step 3: Verifying access to original file...');
-                const verifyUrl = `https://www.googleapis.com/drive/v3/files/${file.id}?fields=id,name,mimeType`;
-                console.log('Verify URL:', verifyUrl);
-                
-                const verifyResponse = await fetch(verifyUrl, {
-                    headers: {
-                        'Authorization': `Bearer ${CONFIG.ACCESS_TOKEN}`
-                    }
-                });
-                console.log('Verify response status:', verifyResponse.status, verifyResponse.statusText);
-                if (verifyResponse.ok) {
-                    const verifiedFile = await verifyResponse.json();
-                    console.log('✅ Step 4: Access to original file verified!');
-                    console.log('Verified file data:', verifiedFile);
-                    
-                    // Delete the temporary copy
-                    console.log('\n🗑️ Step 5: Deleting temporary copy...');
-                    const deleteUrl = `https://www.googleapis.com/drive/v3/files/${copiedFile.id}`;
-                    console.log('Delete URL:', deleteUrl);
-                    
-                    const deleteResponse = await fetch(deleteUrl, {
-                        method: 'DELETE',
-                        headers: {
-                            'Authorization': `Bearer ${CONFIG.ACCESS_TOKEN}`
-                        }
-                    });
-                    
-                    console.log('Delete response status:', deleteResponse.status, deleteResponse.statusText);
-                    console.log('✅ Step 6: Temporary copy deleted');
-                    console.log('\n=== GRANT FILE ACCESS COMPLETED SUCCESSFULLY ===\n');
-                    displayFileInfo(file, pickerData);
-                } else {
-                    const verifyErrorText = await verifyResponse.text();
-                    console.error('❌ Verify failed - Response body:', verifyErrorText);
-                    throw new Error(`Could not verify access to original file: ${verifyResponse.status} - ${verifyErrorText}`);
-                }
-            } catch (error) {
-                console.error('\n❌ === GRANT FILE ACCESS FAILED ===');
-                console.error('Error type:', error.constructor.name);
-                console.error('Error message:', error.message);
-                console.error('Error stack:', error.stack);
-                
-                // Still try to send the file info, but flag the error
-                const selectedFileData = {
-                    id: file.id,
-                    name: file.name,
-                    mimeType: file.mimeType,
-                    sizeBytes: file.sizeBytes,
-                    url: file.url,
-                    lastEditedUtc: file.lastEditedUtc,
-                    selectedAt: new Date().toISOString(),
-                    rawData: pickerData,
-                    accessError: error.message,
-                    errorStack: error.stack
-                };
-                
-                console.log('Sending error data to parent:', selectedFileData);
-                
-                localStorage.setItem('lumexa_selected_file', JSON.stringify(selectedFileData));
-                
-                if (window.opener) {
-                    window.opener.postMessage({
-                        type: 'FILE_SELECTED',
-                        data: selectedFileData
-                    }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
-                }
-                
-                // setTimeout(() => {
-                //     if (window.opener) {
-                //         window.opener.postMessage({ type: 'CLOSE_PICKER' }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
-                //     }
-                //     window.close();
-                // }, 2000);
-            }
-        }
+
         // Handle file selection
         function displayFileInfo(file, data) {
             // Store selected file data in localStorage for Lumexa extension
@@ -357,6 +268,7 @@
                 selectedAt: new Date().toISOString(),
                 rawData: data
             };
+
             localStorage.setItem('lumexa_selected_file', JSON.stringify(selectedFileData));
             
             // Notify parent window (Lumexa extension) that file was selected
@@ -366,17 +278,19 @@
                     data: selectedFileData
                 }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
             }
+
             // Show success message
             // showStatus('File selected! Closing window...', 'success');
             
             // Auto-close after 2 seconds
-            // setTimeout(() => {
-            //     if (window.opener) {
-            //         window.opener.postMessage({ type: 'CLOSE_PICKER' }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
-            //     }
-            //     window.close();
-            // }, 2000);
+            setTimeout(() => {
+                if (window.opener) {
+                    window.opener.postMessage({ type: 'CLOSE_PICKER' }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
+                }
+                window.close();
+            }, 2000);
         }
+
         // Start the application when page loads
         document.addEventListener('DOMContentLoaded', function() {
             init();
