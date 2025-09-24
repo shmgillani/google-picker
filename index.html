@@ -98,6 +98,7 @@
     <!-- Google API Scripts -->
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://apis.google.com/js/picker.js"></script>
+    <script src="https://apis.google.com/js/client.js"></script>
 
     <script>
         // Configuration - Token will be loaded from localStorage
@@ -113,6 +114,7 @@
 
         // Global variables
         let pickerApiLoaded = false;
+        let gapiClientLoaded = false;
         let oauthToken = null;
 
         // DOM elements
@@ -172,9 +174,21 @@
         function loadGoogleAPIs() {
             // showStatus('Loading Google APIs...', 'info');
 
-            // Load the Google API client
-            gapi.load('picker', function() {
+            // Load the Google API client and picker
+            gapi.load('client:picker', function() {
                 pickerApiLoaded = true;
+                
+                // Initialize the client
+                gapi.client.init({
+                    'apiKey': 'AIzaSyBdI0Do0oRjSJ3M3OWhxSUbvMfrcwSXj7Q', // You may need to add your API key here
+                    'discoveryDocs': ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
+                }).then(function() {
+                    gapiClientLoaded = true;
+                    console.log('Google APIs loaded successfully');
+                }).catch(function(error) {
+                    console.error('Error loading Google APIs:', error);
+                });
+                
                 // showStatus('Google APIs loaded. Waiting for token from Lumexa extension...', 'info');
             });
         }
@@ -256,40 +270,156 @@
             }
         }
 
-        // Handle file selection
-        function displayFileInfo(file, data) {
-            // Store selected file data in localStorage for Lumexa extension
-            const selectedFileData = {
-                id: file.id,
-                name: file.name,
-                mimeType: file.mimeType,
-                sizeBytes: file.sizeBytes,
-                url: file.url,
-                lastEditedUtc: file.lastEditedUtc,
-                selectedAt: new Date().toISOString(),
-                rawData: data
-            };
+        // Copy file using Drive API to get proper access
+        async function copyFileForAccess(originalFileId, originalFileName) {
+            try {
+                console.log('Copying file for proper access...', originalFileId);
+                
+                // Set the access token for the client
+                gapi.client.setToken({
+                    access_token: oauthToken
+                });
 
-            localStorage.setItem('lumexa_selected_file', JSON.stringify(selectedFileData));
-            
-            // Notify parent window (Lumexa extension) that file was selected
-            if (window.opener) {
-                window.opener.postMessage({
-                    type: 'FILE_SELECTED',
-                    data: selectedFileData
-                }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
+                // Copy the file using Drive API
+                const response = await gapi.client.drive.files.copy({
+                    fileId: originalFileId,
+                    resource: {
+                        name: `Copy of ${originalFileName}`,
+                        // Copy to the same folder as the original
+                    }
+                });
+
+                const newFileId = response.result.id;
+                console.log('File copied successfully. New File ID:', newFileId);
+                
+                return {
+                    success: true,
+                    newFileId: newFileId,
+                    originalFileId: originalFileId
+                };
+                
+            } catch (error) {
+                console.error('Error copying file:', error);
+                return {
+                    success: false,
+                    error: error.message,
+                    originalFileId: originalFileId
+                };
             }
+        }
 
-            // Show success message
-            // showStatus('File selected! Closing window...', 'success');
+        // Handle file selection
+        async function displayFileInfo(file, data) {
+            console.log('Processing selected file:', file);
             
-            // Auto-close after 2 seconds
-            setTimeout(() => {
-                if (window.opener) {
-                    window.opener.postMessage({ type: 'CLOSE_PICKER' }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
+            // For Google Sheets files, copy them to get proper access
+            if (file.mimeType === 'application/vnd.google-apps.spreadsheet') {
+                console.log('Google Sheets file detected, copying for proper access...');
+                
+                const copyResult = await copyFileForAccess(file.id, file.name);
+                
+                if (copyResult.success) {
+                    console.log('File copied successfully, using copied file ID:', copyResult.newFileId);
+                    
+                    // Store selected file data with both original and copied IDs
+                    const selectedFileData = {
+                        id: copyResult.newFileId, // Use the copied file ID as primary
+                        originalId: copyResult.originalFileId, // Keep original for reference
+                        name: file.name,
+                        mimeType: file.mimeType,
+                        sizeBytes: file.sizeBytes,
+                        url: file.url,
+                        lastEditedUtc: file.lastEditedUtc,
+                        selectedAt: new Date().toISOString(),
+                        isCopied: true,
+                        copySuccess: true,
+                        rawData: data
+                    };
+
+                    localStorage.setItem('lumexa_selected_file', JSON.stringify(selectedFileData));
+                    
+                    // Notify parent window (Lumexa extension) that file was selected
+                    if (window.opener) {
+                        window.opener.postMessage({
+                            type: 'FILE_SELECTED',
+                            data: selectedFileData
+                        }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
+                    }
+
+                    // Show success message
+                    console.log('Google Sheets file copied and ready for Sheets API access!');
+                    
+                    // Auto-close after 2 seconds
+                    setTimeout(() => {
+                        window.close();
+                    }, 2000);
+                    
+                } else {
+                    console.error('Failed to copy file:', copyResult.error);
+                    
+                    // Still store the original file data, but mark copy as failed
+                    const selectedFileData = {
+                        id: file.id,
+                        name: file.name,
+                        mimeType: file.mimeType,
+                        sizeBytes: file.sizeBytes,
+                        url: file.url,
+                        lastEditedUtc: file.lastEditedUtc,
+                        selectedAt: new Date().toISOString(),
+                        isCopied: false,
+                        copySuccess: false,
+                        copyError: copyResult.error,
+                        rawData: data
+                    };
+
+                    localStorage.setItem('lumexa_selected_file', JSON.stringify(selectedFileData));
+                    
+                    // Notify parent window (Lumexa extension) that file was selected
+                    if (window.opener) {
+                        window.opener.postMessage({
+                            type: 'FILE_SELECTED',
+                            data: selectedFileData
+                        }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
+                    }
+
+                    // Auto-close after 2 seconds
+                    setTimeout(() => {
+                        window.close();
+                    }, 2000);
                 }
-                window.close();
-            }, 2000);
+            } else {
+                // For non-Google Sheets files, proceed normally without copying
+                const selectedFileData = {
+                    id: file.id,
+                    name: file.name,
+                    mimeType: file.mimeType,
+                    sizeBytes: file.sizeBytes,
+                    url: file.url,
+                    lastEditedUtc: file.lastEditedUtc,
+                    selectedAt: new Date().toISOString(),
+                    isCopied: false,
+                    copySuccess: null, // Not applicable for non-sheets files
+                    rawData: data
+                };
+
+                localStorage.setItem('lumexa_selected_file', JSON.stringify(selectedFileData));
+                
+                // Notify parent window (Lumexa extension) that file was selected
+                if (window.opener) {
+                    window.opener.postMessage({
+                        type: 'FILE_SELECTED',
+                        data: selectedFileData
+                    }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
+                }
+
+                // Auto-close after 2 seconds
+                setTimeout(() => {
+                    if (window.opener) {
+                        window.opener.postMessage({ type: 'CLOSE_PICKER' }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
+                    }
+                    window.close();
+                }, 2000);
+            }
         }
 
         // Start the application when page loads
