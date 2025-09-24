@@ -1,57 +1,43 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Google Drive Picker + Sheets Metadata</title>
+  <title>Drive Picker with CSV Export</title>
   <script src="https://apis.google.com/js/api.js"></script>
-  <script src="https://apis.google.com/js/picker.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
-  <div class="loading-container">
-    <div class="loading"></div>
-    <div class="loading-text">Opening Google Drive Picker...</div>
-  </div>
+  <button id="pickFile">Pick Google Sheet</button>
 
   <script>
-    const CONFIG = {
-      ACCESS_TOKEN: null,
-      TOKEN_TYPE: 'Bearer',
-      CLIENT_ID: '711224924714-a54tb6h4uorb5r3uavq6chsuo187d4ds.apps.googleusercontent.com'
-    };
+    const CLIENT_ID = "<YOUR_CLIENT_ID>.apps.googleusercontent.com";
+    const API_KEY = "<YOUR_API_KEY>";
+    const SCOPES = "https://www.googleapis.com/auth/drive.file";
 
-    let pickerApiLoaded = false;
-    let oauthToken = null;
+    let tokenClient;
+    let accessToken;
 
-    function init() {
-      setupPostMessageListener();
-      gapi.load('picker', () => { pickerApiLoaded = true; });
-    }
-
-    function setupPostMessageListener() {
-      window.addEventListener('message', function(event) {
-        if (event.origin !== 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg') return;
-
-        if (event.data.type === 'SET_TOKEN') {
-          CONFIG.ACCESS_TOKEN = event.data.data.accessToken;
-          oauthToken = CONFIG.ACCESS_TOKEN;
-          setTimeout(() => openPicker(), 500);
-        }
+    function initPicker() {
+      gapi.load("client:picker", async () => {
+        await gapi.client.init({ apiKey: API_KEY });
+        tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: CLIENT_ID,
+          scope: SCOPES,
+          callback: (response) => {
+            accessToken = response.access_token;
+            openPicker();
+          }
+        });
+        tokenClient.requestAccessToken();
       });
-
-      if (window.opener) {
-        window.opener.postMessage({ type: 'REQUEST_TOKEN' }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
-      }
     }
 
     function openPicker() {
-      if (!pickerApiLoaded || !oauthToken) return;
-
+      const view = new google.picker.View(google.picker.ViewId.SPREADSHEETS);
       const picker = new google.picker.PickerBuilder()
-        .addView(new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS))
-        .setOAuthToken(oauthToken)
+        .addView(view)
+        .setOAuthToken(accessToken)
+        .setDeveloperKey(API_KEY)
         .setCallback(pickerCallback)
-        .setOrigin(window.location.protocol + '//' + window.location.host)
         .build();
       picker.setVisible(true);
     }
@@ -60,41 +46,38 @@
       if (data.action === google.picker.Action.PICKED) {
         const file = data.docs[0];
         console.log("File selected:", file);
-        await fetchSheetMetadata(file.id);
+
+        // ✅ Fetch spreadsheet as CSV via Drive API (no Sheets scope required)
+        try {
+          const response = await fetch(
+            `https://www.googleapis.com/drive/v3/files/${file.id}/export?mimeType=text/csv`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+
+          if (!response.ok) throw new Error(`Export failed: ${response.status}`);
+          const csvText = await response.text();
+          const jsonData = csvToJson(csvText);
+          console.log("Parsed JSON:", jsonData);
+        } catch (err) {
+          console.error("Error fetching/exporting CSV:", err);
+        }
       }
     }
 
-    async function fetchSheetMetadata(fileId) {
-      try {
-        // 1️⃣ Get spreadsheet tabs (sheets)
-        const sheetsResponse = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${fileId}`,
-          {
-            headers: { Authorization: `Bearer ${oauthToken}` }
-          }
-        );
-        if (!sheetsResponse.ok) throw new Error("Failed to get sheet metadata");
-        const sheetsData = await sheetsResponse.json();
-        console.log("Sheet metadata:", sheetsData);
-
-        // 2️⃣ Get first sheet columns (header row)
-        const firstSheetName = sheetsData.sheets[0].properties.title;
-        const range = encodeURIComponent(`${firstSheetName}!1:1`); // first row
-        const valuesResponse = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/${range}`,
-          {
-            headers: { Authorization: `Bearer ${oauthToken}` }
-          }
-        );
-        const valuesData = await valuesResponse.json();
-        console.log("Columns for first sheet:", valuesData.values?.[0] || []);
-
-      } catch (error) {
-        console.error("Error fetching spreadsheet info:", error);
-      }
+    // Simple CSV → JSON parser
+    function csvToJson(csv) {
+      const lines = csv.split("\n").filter(line => line.trim() !== "");
+      const headers = lines[0].split(",").map(h => h.trim());
+      return lines.slice(1).map(row => {
+        const values = row.split(",");
+        return headers.reduce((obj, header, i) => {
+          obj[header] = values[i] ? values[i].trim() : "";
+          return obj;
+        }, {});
+      });
     }
 
-    document.addEventListener('DOMContentLoaded', init);
+    document.getElementById("pickFile").addEventListener("click", initPicker);
   </script>
 </body>
 </html>
