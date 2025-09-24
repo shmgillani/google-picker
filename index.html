@@ -65,6 +65,33 @@
             border: 1px solid #bee5eb;
         }
 
+        .timer-display {
+            margin-top: 20px;
+            padding: 12px 16px;
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .close-button {
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .close-button:hover {
+            background: #c82333;
+        }
+
         .loading {
             display: inline-block;
             width: 24px;
@@ -92,7 +119,12 @@
     <div class="loading-container">
         <div class="loading"></div>
         <div class="loading-text">Opening Google Drive Picker...</div>
-        
+        <div id="timer-display" class="timer-display" style="display: none;">
+            Picker will auto-close in: <span id="time-remaining">15:00</span>
+        </div>
+        <button id="close-button" class="close-button" style="display: none;" onclick="manualClose()">
+            Close Picker Now
+        </button>
     </div>
 
     <!-- Google API Scripts -->
@@ -116,11 +148,73 @@
         let pickerApiLoaded = false;
         let gapiClientLoaded = false;
         let oauthToken = null;
+        let autoCloseTimer = null;
+        let timeRemaining = 15 * 60; // 15 minutes in seconds
+        let timerInterval = null;
 
         // DOM elements
         const elements = {
-            status: document.getElementById('status')
+            status: document.getElementById('status'),
+            timerDisplay: document.getElementById('timer-display'),
+            timeRemaining: document.getElementById('time-remaining'),
+            closeButton: document.getElementById('close-button')
         };
+
+        // Start the auto-close timer
+        function startAutoCloseTimer() {
+            console.log('Starting 15-minute auto-close timer for picker inspection');
+            
+            // Show timer and close button
+            elements.timerDisplay.style.display = 'block';
+            elements.closeButton.style.display = 'block';
+            
+            // Update timer display every second
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                const minutes = Math.floor(timeRemaining / 60);
+                const seconds = timeRemaining % 60;
+                elements.timeRemaining.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (timeRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    console.log('Auto-close timer expired, closing picker');
+                    closePicker();
+                }
+            }, 1000);
+            
+            // Set the actual auto-close timer
+            autoCloseTimer = setTimeout(() => {
+                console.log('Auto-close timer triggered after 15 minutes');
+                closePicker();
+            }, 15 * 60 * 1000); // 15 minutes
+        }
+
+        // Manual close function
+        function manualClose() {
+            console.log('Manual close requested by user');
+            closePicker();
+        }
+
+        // Close picker function
+        function closePicker() {
+            console.log('Closing picker...');
+            
+            // Clear timers
+            if (autoCloseTimer) {
+                clearTimeout(autoCloseTimer);
+                autoCloseTimer = null;
+            }
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            
+            // Notify parent window and close
+            if (window.opener) {
+                window.opener.postMessage({ type: 'CLOSE_PICKER' }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
+            }
+            window.close();
+        }
 
         // Initialize the application
         function init() {
@@ -221,21 +315,27 @@
 
         // Open Google Picker
         async function openPicker() {
+            console.log('=== OPENING GOOGLE PICKER ===');
+            console.log('Picker API loaded:', pickerApiLoaded);
+            console.log('GAPI client loaded:', gapiClientLoaded);
+            console.log('Access token available:', !!CONFIG.ACCESS_TOKEN);
+            
             if (!pickerApiLoaded) {
-                // showStatus('Google Picker API not loaded yet', 'error');
+                console.error('Google Picker API not loaded yet');
                 return;
             }
 
             if (!CONFIG.ACCESS_TOKEN) {
-                // showStatus('No token available. Please ensure you are accessing this from Lumexa extension.', 'error');
+                console.error('No access token available');
                 return;
             }
 
             try {
-                // showStatus('Opening Google Drive picker...', 'info');
-
+                console.log('Creating picker instance...');
+                
                 // Set the token
                 oauthToken = CONFIG.ACCESS_TOKEN;
+                console.log('OAuth token set:', oauthToken ? 'Yes' : 'No');
 
                 // Create picker instance
                 const picker = new google.picker.PickerBuilder()
@@ -249,24 +349,44 @@
                     .setTitle('Select a file from Google Drive')
                     .build();
 
+                console.log('Picker instance created successfully');
+                console.log('Setting picker visible...');
+
                 // Show the picker
                 picker.setVisible(true);
+                
+                console.log('Picker is now visible');
+                console.log('Starting 15-minute auto-close timer...');
+                
+                // Start the auto-close timer
+                startAutoCloseTimer();
 
             } catch (error) {
                 console.error('Error opening picker:', error);
-                // showStatus(`Error: ${error.message}`, 'error');
+                console.error('Error details:', error.message, error.stack);
             }
         }
 
         // Handle picker callback
         function pickerCallback(data) {
+            console.log('=== PICKER CALLBACK TRIGGERED ===');
+            console.log('Callback data:', data);
+            console.log('Action type:', data.action);
+            console.log('Action constants:', {
+                PICKED: google.picker.Action.PICKED,
+                CANCEL: google.picker.Action.CANCEL
+            });
+            
             if (data.action === google.picker.Action.PICKED) {
+                console.log('File was picked!');
                 const file = data.docs[0];
-                console.log("file from picker=====>>>", data);
+                console.log("Selected file details:", file);
+                console.log("Full picker data:", data);
                 displayFileInfo(file, data);
-                // showStatus('File selected successfully!', 'success');
             } else if (data.action === google.picker.Action.CANCEL) {
-                // showStatus('File selection cancelled', 'info');
+                console.log('File selection was cancelled by user');
+            } else {
+                console.log('Unknown picker action:', data.action);
             }
         }
 
@@ -310,7 +430,15 @@
 
         // Handle file selection
         async function displayFileInfo(file, data) {
-            console.log('Processing selected file:', file);
+            console.log('=== PROCESSING SELECTED FILE ===');
+            console.log('File object:', file);
+            console.log('File ID:', file.id);
+            console.log('File name:', file.name);
+            console.log('File MIME type:', file.mimeType);
+            console.log('File size:', file.sizeBytes);
+            console.log('File URL:', file.url);
+            console.log('Last edited:', file.lastEditedUtc);
+            console.log('Full picker data:', data);
             
             // For Google Sheets files, copy them to get proper access
             if (file.mimeType === 'application/vnd.google-apps.spreadsheet') {
@@ -348,11 +476,9 @@
 
                     // Show success message
                     console.log('Google Sheets file copied and ready for Sheets API access!');
+                    console.log('File processing complete - picker will remain open for inspection');
                     
-                    // Auto-close after 2 seconds
-                    setTimeout(() => {
-                        window.close();
-                    }, 2000);
+                    // Don't auto-close - let the 15-minute timer handle it
                     
                 } else {
                     console.error('Failed to copy file:', copyResult.error);
@@ -382,10 +508,8 @@
                         }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
                     }
 
-                    // Auto-close after 2 seconds
-                    setTimeout(() => {
-                        window.close();
-                    }, 2000);
+                    // Don't auto-close - let the 15-minute timer handle it
+                    console.log('File processing complete (copy failed) - picker will remain open for inspection');
                 }
             } else {
                 // For non-Google Sheets files, proceed normally without copying
@@ -412,13 +536,8 @@
                     }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
                 }
 
-                // Auto-close after 2 seconds
-                setTimeout(() => {
-                    if (window.opener) {
-                        window.opener.postMessage({ type: 'CLOSE_PICKER' }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
-                    }
-                    window.close();
-                }, 2000);
+                // Don't auto-close - let the 15-minute timer handle it
+                console.log('File processing complete (non-sheets file) - picker will remain open for inspection');
             }
         }
 
