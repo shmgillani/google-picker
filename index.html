@@ -271,24 +271,23 @@
 
             localStorage.setItem('lumexa_selected_file', JSON.stringify(selectedFileData));
             
-            // Notify parent window (Lumexa extension) that file was selected
-            if (window.opener) {
-                window.opener.postMessage({
-                    type: 'FILE_SELECTED',
-                    data: selectedFileData
-                }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
-            }
+            // Create state object for Drive UI integration
+            const state = {
+                action: "open",
+                userId: "me", // placeholder; Google normally injects the actual userId
+                resourceId: file.id,
+                ids: [file.id]
+            };
 
-            // Show success message
-            // showStatus('File selected! Closing window...', 'success');
+            // Open with your GCP app using proper state param
+            const OPEN_URL = 'https://integration.lumexaai.com/';
+            const openWithUrl = `${OPEN_URL}?state=${encodeURIComponent(JSON.stringify(state))}`;
             
-            // Auto-close after 2 seconds
-            setTimeout(() => {
-                if (window.opener) {
-                    window.opener.postMessage({ type: 'CLOSE_PICKER' }, 'chrome-extension://dikjefedeamocbhjedfepjecoaebngmg');
-                }
-                window.close();
-            }, 2000);
+            // Show success message
+            // showStatus('File selected! Opening with Drive app...', 'success');
+            
+            // Redirect to Drive app
+            window.location.href = openWithUrl;
         }
 
         // Start the application when page loads
